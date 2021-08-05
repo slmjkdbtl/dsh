@@ -1,20 +1,44 @@
-$ term = import("term")
+-- TODO: config file stdlib
+-- TODO: hist file
+-- TODO: 'z' quick jump
+-- TODO: line edit independent of prompt
+
+$ fs = import("fs")
+$ str = import("str")
+$ arr = import("arr")
 $ sys = import("sys")
+$ term = import("term")
+$ dbg = import("dbg")
 
 term.no_echo()
 sys.signal(~ () {})
 
+$ hist = []
+
 @ {
 
-	-- prompt
+	-- load cfg and hist
 	$ home = sys.getenv("HOME")
+	$ cfgfile = home + "/.dshrc"
+	$ histfile = home + "/.dshhist"
+
+-- 	? (fs.exists(cfgfile)) {
+-- 		$ cfg = dofile(cfgfile)
+-- 	}
+
+-- 	? (fs.exists(histfile)) {
+-- 		$ hist = fs.read(histfile)
+-- 	}
+
+	-- prompt
 	$ user = sys.getenv("USER")
 	$ host = "broccoli"
-	$ cwd = sys.cwd():replace(home, "~")
+	$ cwd = sys.cwd() : str.replace(home, "~")
+
 	sys.print("\n")
-	sys.print(term.dim(user + "@" + host))
+	sys.print((user + "@" + host) : term.dim())
 	sys.print("\n")
-	sys.print(term.bold(term.magenta(cwd)))
+	sys.print(cwd : term.bold() : term.magenta())
 	sys.print("\n")
 	sys.print(term.yellow("> "))
 
@@ -23,18 +47,18 @@ sys.signal(~ () {})
 
 	~ prev_word () {
 		? (cur > 0) {
-			$ pos = line:rfind_at(" ", cur - 2)
+			$ pos = line : str.rfind_at(" ", cur - 2)
 			? (pos != -1) cur = pos + 1 | cur = 0
 		}
 	}
 
 	~ next_word () {
-		$ pos = line:find_at(" ", cur + 2)
+		$ pos = line : str.find_at(" ", cur + 2)
 		? (pos != -1) cur = pos - 1 | cur = #line
 	}
 
 	~ del_word () {
-		$ pos = line:rfind_at(" ", cur - 2)
+		$ pos = line : str.rfind_at(" ", cur - 2)
 		? (pos != -1) {
 			line = line[0..(pos + 1)] + line[cur..#line]
 			cur = pos + 1
@@ -74,17 +98,18 @@ sys.signal(~ () {})
 		}
 		| (ch == "b") prev_word()
 		| (ch == "f") next_word()
-		| (ch:code() == 127) del_word()
+		| (str.code(ch) == 127) del_word()
 
 	}
 
 	-- line edit
 	@ {
 
+		-- input
 		$ ch = sys.getchar()
 
-		? (ch:code() == 127) del()
-		| (ch:code() == 27) escaped()
+		? (ch : str.code() == 127) del()
+		| (ch : str.code() == 27) escaped()
 		| (ch == "\n") { sys.print("\n") @> }
 		| insert(ch)
 
@@ -98,11 +123,13 @@ sys.signal(~ () {})
 	}
 
 	-- exec
-	$ chunks = line:split(" ")
+	$ chunks = line : str.split(" ")
 	$ cmd = chunks[0]
 
 	? (cmd == "cd") { ? (#chunks > 1) sys.chdir(chunks[1]) }
-	| (cmd == "exit") sys.exit()
+	| (cmd == "exit") @>
 	| sys.exec(line)
+
+	hist : arr.push(line)
 
 }
