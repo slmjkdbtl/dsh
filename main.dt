@@ -1,0 +1,92 @@
+$ term = import("term")
+$ sys = import("sys")
+
+term.no_echo()
+
+sys.signal(~ () {})
+
+@ {
+
+	-- prompt
+	$ home = sys.getenv("HOME")
+	$ user = sys.getenv("USER")
+	$ host = "broccoli"
+	$ cwd = sys.cwd():replace(home, "~")
+	sys.print("\n")
+	sys.print(term.dim(user + "@" + host))
+	sys.print("\n")
+	sys.print(term.bold(term.magenta(cwd)))
+	sys.print("\n")
+	sys.print(term.yellow("> "))
+
+	$ line = ""
+	$ cur = 0
+
+	@ {
+		$ ch = sys.getchar()
+		$ ascii = ch:code()
+		% (ascii == 127) {
+			% (cur > 0) {
+				line = line[0..(cur - 1)] + line[cur..#line]
+				cur -= 1
+			}
+		} | (ascii == 27) {
+			ch = sys.getchar()
+			ascii = ch:code()
+			% (ch == "[") {
+				ch = sys.getchar()
+				% (ch == "A") {
+					-- up
+				} | (ch == "B") {
+					-- down
+				} | (ch == "C") {
+					% (cur < #line) cur += 1
+				} | (ch == "D") {
+					% (cur > 0) cur -= 1
+				}
+			} | (ch == "b") {
+				% (cur > 0) {
+					$ pos = line:rfind_at(" ", cur - 2)
+					% (pos != -1) cur = pos + 1 | cur = 0
+				}
+			} | (ch == "f") {
+				$ pos = line:find_at(" ", cur + 2)
+				% (pos != -1) cur = pos - 1 | cur = #line
+			} | (ascii == 127) {
+				$ pos = line:rfind_at(" ", cur - 2)
+				% (pos != -1) {
+					line = line[0..(pos + 1)] + line[cur..#line]
+					cur = pos + 1
+				} | {
+					line = line[cur..#line]
+					cur = 0
+				}
+			}
+		} | (ch == "\n") {
+			sys.print("\n")
+			@>
+		} | {
+			line = line[0..cur] + ch + line[cur..#line]
+			cur += 1
+		}
+
+		sys.print(term.clear_line())
+		sys.print(term.move_cursor_col(1))
+		sys.print(term.yellow("> "))
+		sys.print(line)
+		sys.print(term.move_cursor_col(cur + 3))
+
+	}
+
+	$ chunks = line:split(" ")
+	$ cmd = chunks[0]
+
+	% (cmd == "cd") {
+		sys.chdir(chunks[1])
+	} | (cmd == "exit") {
+		sys.exit()
+	} | {
+		sys.exec(line)
+	}
+
+}
