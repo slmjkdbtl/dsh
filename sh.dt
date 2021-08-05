@@ -21,67 +21,72 @@ sys.signal(~ () {})
 	$ line = ""
 	$ cur = 0
 
+	~ prev_word () {
+		? (cur > 0) {
+			$ pos = line:rfind_at(" ", cur - 2)
+			? (pos != -1) cur = pos + 1 | cur = 0
+		}
+	}
+
+	~ next_word () {
+		$ pos = line:find_at(" ", cur + 2)
+		? (pos != -1) cur = pos - 1 | cur = #line
+	}
+
+	~ del_word () {
+		$ pos = line:rfind_at(" ", cur - 2)
+		? (pos != -1) {
+			line = line[0..(pos + 1)] + line[cur..#line]
+			cur = pos + 1
+		} | {
+			line = line[cur..#line]
+			cur = 0
+		}
+	}
+
+	~ del () {
+		? (cur > 0) {
+			line = line[0..(cur - 1)] + line[cur..#line]
+			cur -= 1
+		}
+	}
+
+	~ insert (ch) {
+		line = line[0..cur] + ch + line[cur..#line]
+		cur += 1
+	}
+
+	~ move_left() ? (cur > 0) cur -= 1
+	~ move_right() ? (cur < #line) cur += 1
+	~ move_up() { --- todo --- }
+	~ move_down() { --- todo --- }
+
+	~ escaped () {
+
+		$ ch = sys.getchar()
+
+		? (ch == "[") {
+			ch = sys.getchar()
+			? (ch == "A") move_up()
+			| (ch == "B") move_down()
+			| (ch == "C") move_right()
+			| (ch == "D") move_left()
+		}
+		| (ch == "b") prev_word()
+		| (ch == "f") next_word()
+		| (ch:code() == 127) del_word()
+
+	}
+
 	-- line edit
 	@ {
 
 		$ ch = sys.getchar()
 
-		? (ch:code() == 127) {
-			? (cur > 0) {
-				line = line[0..(cur - 1)] + line[cur..#line]
-				cur -= 1
-			}
-		}
-
-		| (ch:code() == 27) {
-
-			ch = sys.getchar()
-
-			? (ch == "[") {
-				ch = sys.getchar()
-				? (ch == "A") {}
-				| (ch == "B") {}
-				| (ch == "C") { ? (cur < #line) cur += 1 }
-				| (ch == "D") { ? (cur > 0) cur -= 1 }
-			}
-
-			| (ch == "b") {
-				? (cur > 0) {
-					$ pos = line:rfind_at(" ", cur - 2)
-					? (pos != -1) cur = pos + 1 | cur = 0
-				}
-			}
-
-			| (ch == "f") {
-				$ pos = line:find_at(" ", cur + 2)
-				? (pos != -1) cur = pos - 1 | cur = #line
-			}
-
-			| (ch:code() == 127) {
-
-				$ pos = line:rfind_at(" ", cur - 2)
-
-				? (pos != -1) {
-					line = line[0..(pos + 1)] + line[cur..#line]
-					cur = pos + 1
-				} | {
-					line = line[cur..#line]
-					cur = 0
-				}
-
-			}
-
-		}
-
-		| (ch == "\n") {
-			sys.print("\n")
-			@>
-		}
-
-		| {
-			line = line[0..cur] + ch + line[cur..#line]
-			cur += 1
-		}
+		? (ch:code() == 127) del()
+		| (ch:code() == 27) escaped()
+		| (ch == "\n") { sys.print("\n") @> }
+		| insert(ch)
 
 		-- render
 		sys.print(term.clear_line())
