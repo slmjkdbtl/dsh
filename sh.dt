@@ -10,12 +10,16 @@ $ str = import("str")
 $ arr = import("arr")
 $ sys = import("sys")
 $ term = import("term")
-$ dbg = import("dbg")
+
+-- $ home = sys.getenv("HOME")
+-- $ cfgfile = home + "/.dshrc"
+$ cfgfile = ".dshrc"
 
 term.rawmode()
-sys.signal(~ () {})
+sys.ctrlc(~ () {})
 
 ~ err (msg) print(term.red() + msg + term.reset())
+~ cfgerr (msg, line) err(cfgfile + ":" + line + ": " + msg)
 
 $ hist = []
 
@@ -35,40 +39,30 @@ $ hist = []
 
 }
 
-~ loadcfg() {
-
--- 	$ home = sys.getenv("HOME")
--- 	$ cfgfile = home + "/.dshrc"
-	$ cfgfile = ".dshrc"
-
-	$ cfg = {
-		alias: {}
-		abbr: {}
-		cmd: {}
-		prompt: defprompt
-	}
-
-	? (fs.exists(cfgfile)) {
-		:) dofile(cfgfile, {
-			env: ~ (k, v) sys.setenv(k, v)
-			path: ~ (p) sys.setenv("PATH", sys.getenv("PATH") + ":" + p)
-			alias: ~ (key, exp) cfg.alias[key] = exp
-			abbr: ~ (key, exp) cfg.abbr[key] = exp
-			cmd: ~ (name, f) cfg.cmd[name] = f
-			prompt: ~ (f) cfg.prompt = f
-		}) | ~ (msg, line) err("~/.dshrc:" + line + ": " + msg)
-	}
-
-	~> cfg
-
+$ cfg = {
+	alias: {}
+	abbr: {}
+	cmd: {}
+	prompt: defprompt
 }
 
-$ cfg = loadcfg()
+$ cfglib = {
+	env: ~ (k, v) sys.setenv(k, v)
+	path: ~ (p) sys.setenv("PATH", sys.getenv("PATH") + ":" + p)
+	alias: ~ (key, exp) cfg.alias[key] = exp
+	abbr: ~ (key, exp) cfg.abbr[key] = exp
+	cmd: ~ (name, f) cfg.cmd[name] = f
+	prompt: ~ (f) cfg.prompt = f
+}
+
+~ loadcfg() :) dofile(cfgfile, cfglib) | cfgerr
+
+loadcfg()
 
 @ {
 
 	-- prompt
-	cfg.prompt()
+	:) cfg.prompt() | cfgerr
 	term.cursave()
 
 	$ line = ""
@@ -131,6 +125,16 @@ $ cfg = loadcfg()
 
 	}
 
+	-- TODO: tighter logic
+	~ expand() {
+		$ cmd = str.split(line, " ")[0]
+		? (cfg.abbr[cmd]) {
+			line = cfg.abbr[cmd]
+			cur = #line
+		}
+		insert(" ")
+	}
+
 	-- line edit
 	@ {
 
@@ -140,6 +144,7 @@ $ cfg = loadcfg()
 		? (ch : str.code() == 127) del()
 		| (ch : str.code() == 27) escaped()
 		| (ch == "\n") { sys.print("\n") @> }
+		| (ch == " ") expand()
 		| insert(ch)
 
 		-- render
@@ -150,15 +155,22 @@ $ cfg = loadcfg()
 
 	}
 
+	hist : arr.push(line)
+
 	-- exec
-	$ chunks = line : str.split(" ")
+	$ chunks = str.split(line, " ")
 	$ cmd = chunks[0]
+
+	-- TODO: messy
+	? (cfg.alias[cmd] || cfg.abbr[cmd]) {
+		chunks[0] = cfg.alias[cmd] ?? cfg.abbr[cmd]
+		chunks = str.split(arr.join(chunks, " "), " ")
+		cmd = chunks[0]
+	}
 
 	? (cmd == "cd") { ? (#chunks > 1) sys.chdir(chunks[1]) }
 	| (cmd == "exit") @>
 	| (cmd == "z") { --- TODO --- }
-	| sys.exec(line)
-
-	hist : arr.push(line)
+	| sys.exec(arr.join(chunks, " "))
 
 }

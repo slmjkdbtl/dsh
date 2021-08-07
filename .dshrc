@@ -1,3 +1,8 @@
+$ sys = import("sys")
+$ term = import("term")
+-- TODO: err handling bug: if i remove this line it'll crash instead of give nil error
+$ str = import("str")
+
 env("EDITOR", "nvim")
 env("BROWSER", "open")
 env("PAGER", "less")
@@ -44,10 +49,6 @@ abbr("gpl", "git pull")
 
 prompt(~ () {
 
-	$ sys = import("sys")
-	$ term = import("term")
-	-- if i remove this line it'll crash instead of give nil error
-	$ str = import("str")
 	$ home = sys.getenv("HOME")
 	$ user = sys.getenv("USER")
 	$ host = "broccoli"
