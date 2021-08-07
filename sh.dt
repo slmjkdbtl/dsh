@@ -3,7 +3,6 @@
 -- TODO: config file stdlib
 -- TODO: hist file
 -- TODO: 'z' quick jump
--- TODO: line edit independent of prompt
 -- TODO: fork() + execvp() instead of system()
 
 $ fs = import("fs")
@@ -13,27 +12,16 @@ $ sys = import("sys")
 $ term = import("term")
 $ dbg = import("dbg")
 
-term.noecho()
+term.rawmode()
 sys.signal(~ () {})
+
+~ err (msg) print(term.red() + msg + term.reset())
 
 $ hist = []
 
-@ {
+~ defprompt () {
 
-	-- load cfg and hist
 	$ home = sys.getenv("HOME")
-	$ cfgfile = home + "/.dshrc"
-	$ histfile = home + "/.dshhist"
-
--- 	? (fs.exists(cfgfile)) {
--- 		$ cfg = dofile(cfgfile)
--- 	}
-
--- 	? (fs.exists(histfile)) {
--- 		$ hist = fs.read(histfile)
--- 	}
-
-	-- prompt
 	$ user = sys.getenv("USER")
 	$ host = "broccoli"
 	$ cwd = sys.cwd() : str.replace(home, "~")
@@ -44,6 +32,43 @@ $ hist = []
 	sys.print(term.bold() + term.magenta() + cwd + term.reset())
 	sys.print("\n")
 	sys.print(term.yellow() + "> " + term.reset())
+
+}
+
+~ loadcfg() {
+
+-- 	$ home = sys.getenv("HOME")
+-- 	$ cfgfile = home + "/.dshrc"
+	$ cfgfile = ".dshrc"
+
+	$ cfg = {
+		alias: {}
+		abbr: {}
+		cmd: {}
+		prompt: defprompt
+	}
+
+	? (fs.exists(cfgfile)) {
+		:) dofile(cfgfile, {
+			env: ~ (k, v) sys.setenv(k, v)
+			path: ~ (p) sys.setenv("PATH", sys.getenv("PATH") + ":" + p)
+			alias: ~ (key, exp) cfg.alias[key] = exp
+			abbr: ~ (key, exp) cfg.abbr[key] = exp
+			cmd: ~ (name, f) cfg.cmd[name] = f
+			prompt: ~ (f) cfg.prompt = f
+		}) | ~ (msg, line) err("~/.dshrc:" + line + ": " + msg)
+	}
+
+	~> cfg
+
+}
+
+$ cfg = loadcfg()
+
+@ {
+
+	-- prompt
+	cfg.prompt()
 	term.cursave()
 
 	$ line = ""

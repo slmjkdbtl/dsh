@@ -44,20 +44,20 @@ abbr("gpl", "git pull")
 
 prompt(~ () {
 
+	$ sys = import("sys")
+	$ term = import("term")
+	-- if i remove this line it'll crash instead of give nil error
+	$ str = import("str")
 	$ home = sys.getenv("HOME")
 	$ user = sys.getenv("USER")
 	$ host = "broccoli"
 	$ cwd = sys.cwd() : str.replace(home, "~")
 
 	sys.print("\n")
-	sys.print((user + "@" + host) : term.dim())
+	sys.print(term.dim() + user + "@" + host + term.reset())
 	sys.print("\n")
-	sys.print(cwd : term.bold() : term.magenta())
+	sys.print(term.bold() + term.magenta() + cwd + term.reset())
 	sys.print("\n")
-	sys.print(term.yellow("> "))
+	sys.print(term.yellow() + "> " + term.reset())
 
-})
-
-cmd("clean", ~ () {
-	-- custom cmd
 })
