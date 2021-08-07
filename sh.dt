@@ -1,7 +1,10 @@
+#!/usr/bin/env dirty
+
 -- TODO: config file stdlib
 -- TODO: hist file
 -- TODO: 'z' quick jump
 -- TODO: line edit independent of prompt
+-- TODO: fork() + execvp() instead of system()
 
 $ fs = import("fs")
 $ str = import("str")
@@ -10,7 +13,7 @@ $ sys = import("sys")
 $ term = import("term")
 $ dbg = import("dbg")
 
-term.no_echo()
+term.noecho()
 sys.signal(~ () {})
 
 $ hist = []
@@ -36,11 +39,12 @@ $ hist = []
 	$ cwd = sys.cwd() : str.replace(home, "~")
 
 	sys.print("\n")
-	sys.print((user + "@" + host) : term.dim())
+	sys.print(term.dim() + user + "@" + host + term.reset())
 	sys.print("\n")
-	sys.print(cwd : term.bold() : term.magenta())
+	sys.print(term.bold() + term.magenta() + cwd + term.reset())
 	sys.print("\n")
-	sys.print(term.yellow("> "))
+	sys.print(term.yellow() + "> " + term.reset())
+	term.cursave()
 
 	$ line = ""
 	$ cur = 0
@@ -82,8 +86,8 @@ $ hist = []
 
 	~ move_left() ? (cur > 0) cur -= 1
 	~ move_right() ? (cur < #line) cur += 1
-	~ move_up() { --- todo --- }
-	~ move_down() { --- todo --- }
+	~ move_up() { --- TODO --- }
+	~ move_down() { --- TODO --- }
 
 	~ escaped () {
 
@@ -114,11 +118,10 @@ $ hist = []
 		| insert(ch)
 
 		-- render
-		sys.print(term.clear_line())
-		sys.print(term.move_cursor_col(1))
-		sys.print(term.yellow("> "))
+		term.curload()
+		term.clrln0()
 		sys.print(line)
-		sys.print(term.move_cursor_col(cur + 3))
+		@ (i \ 0..(#line - cur)) term.curleft()
 
 	}
 
@@ -128,6 +131,7 @@ $ hist = []
 
 	? (cmd == "cd") { ? (#chunks > 1) sys.chdir(chunks[1]) }
 	| (cmd == "exit") @>
+	| (cmd == "z") { --- TODO --- }
 	| sys.exec(line)
 
 	hist : arr.push(line)
